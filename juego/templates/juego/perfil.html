@@ -1,0 +1,14 @@
+{% extends 'juego/base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Estadísticas de {{ user.username }}</h2>
+    <ul class="list-group mt-3">
+        <li class="list-group-item">Total de partidas jugadas: {{ stats.partidas_jugadas }}</li>
+        <li class="list-group-item">Total de victorias: {{ stats.total_victorias }}</li>
+        <li class="list-group-item">Total de derrotas: {{ stats.total_derrotas }}</li>
+        <li class="list-group-item">Promedio de tiempo por partida: {{ promedio_tiempo }} segundos</li>
+        <li class="list-group-item">Nivel más jugado: {{ stats.nivel_mas_jugado|capfirst }}</li>
+    </ul>
+    <a href="{% url 'seleccionar_dificultad' %}" class="btn btn-primary mt-4">Volver a jugar</a>
+</div>
+{% endblock %}

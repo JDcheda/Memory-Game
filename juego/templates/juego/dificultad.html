@@ -1,0 +1,10 @@
+{% extends "juego/base.html" %}
+{% block content %}
+<h2>Selecciona el Nivel de Dificultad</h2>
+<form method="post">
+  {% csrf_token %}
+  <button type="submit" name="dificultad" value="basico" class="btn btn-success">Básico (6 intentos)</button>
+  <button type="submit" name="dificultad" value="medio" class="btn btn-warning">Medio (4 intentos)</button>
+  <button type="submit" name="dificultad" value="avanzado" class="btn btn-danger">Avanzado (2 intentos)</button>
+</form>
+{% endblock %}

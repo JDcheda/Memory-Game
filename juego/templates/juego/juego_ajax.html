@@ -1,0 +1,171 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Memory Game</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        #tablero {
+            max-width: 440px;
+            margin: 30px auto;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+        .cuadro {
+            width: 100px;
+            height: 100px;
+            cursor: pointer;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .cuadro img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            user-select: none;
+        }
+    </style>
+</head>
+<body class="container text-center">
+    <div id="temporizador" class="text-danger fw-bold fs-5">Tiempo restante: 60s</div>
+    <h2>Memory Game - {{ user.username }}</h2>
+   <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit"  class="btn btn-danger">Cerrar sesión</button>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <strong>Puntos:</strong> <span id="puntos">{{ puntos }}</span>
+    </div>
+    <button class="btn btn-warning" id="btnNuevoJuego">🔄 Nuevo juego</button>
+    </div>
+    </form>
+    <div id="tablero">
+        {% for cuadro in cuadros %}
+        <div class="cuadro" data-index="{{ forloop.counter0 }}">
+            <img src="{% static 'juego/assets/interrogacion.png' %}" alt="carta oculta">
+        </div>
+        {% endfor %}
+    </div>
+
+    <script>
+        const tablero = document.getElementById('tablero');
+        const interrogacion = "{% static 'juego/assets/interrogacion.png' %}";
+        const assetsPath = "{% static 'juego/assets/' %}";
+
+        let puedeJugar = true;
+        let timeoutId = null;
+
+        function actualizarTablero(cuadros) {
+        cuadros.forEach((cuadro, i) => {
+            const div = tablero.children[i];
+            const img = div.querySelector('img');
+            if (cuadro.descubierto || cuadro.mostrar) {
+                img.src = assetsPath + cuadro.imagen;
+            } else {
+                img.src = interrogacion;
+            }
+        });
+        }   
+
+        tablero.addEventListener('click', function(e) {
+        if (!puedeJugar) return;
+
+        const cuadroDiv = e.target.closest('.cuadro');
+        if (!cuadroDiv) return;
+
+        const index = cuadroDiv.getAttribute('data-index');
+
+        fetch("{% url 'juego_ajax' %}", {
+            method: "POST",
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: `index=${index}`
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === "ok") {
+                actualizarTablero(data.cuadros);
+
+                const abiertos = data.cuadros.filter(c => c.mostrar && !c.descubierto);
+                if (abiertos.length === 2) {
+                    puedeJugar = false;
+                    if (timeoutId) clearTimeout(timeoutId);
+                    timeoutId = setTimeout(() => {
+                        fetch("{% url 'juego_ajax' %}")
+                        .then(res => res.json())
+                        .then(data => {
+                            actualizarTablero(data.cuadros);
+                            puedeJugar = true;
+                        });
+                    }, 1200);
+                }
+            }
+            else if (data.status === "perdio") {
+                alert(data.mensaje);
+                window.location.href = data.url_redirect || '/';
+            }
+            else if (data.status === "gano") {
+                alert(data.mensaje);
+                actualizarTablero(data.cuadros);
+            }
+        });
+     });
+
+         // Inicializa el tablero visible con el estado actual
+         document.addEventListener('DOMContentLoaded', () => {
+        fetch("{% url 'juego_ajax' %}")
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'ok') {
+                actualizarTablero(data.cuadros);
+            }
+        });
+     });
+    </script>
+
+    <script>
+    document.getElementById('btnNuevoJuego').addEventListener('click', function (e) {
+        e.preventDefault();
+        window.location.href = "{% url 'seleccionar_dificultad' %}";
+    });
+</script>
+
+<script>
+    let tiempoRestante = 60;  // segundos
+    const temporizador = document.getElementById("temporizador");
+
+    const cuentaRegresiva = setInterval(() => {
+        tiempoRestante--;
+        temporizador.textContent =`Tiempo restante: ${tiempoRestante}s`;
+
+        if (tiempoRestante <= 0) {
+            clearInterval(cuentaRegresiva);
+            // Notificar al servidor que perdió por tiempo
+            fetch("{% url 'juego_ajax' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: JSON.stringify({ tipo: "tiempo_agotado" })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert("¡Tiempo agotado! Has perdido.");
+                window.location.href = data.url_redirect || "/login/";
+            });
+        }
+    }, 1000);
+</script>
+<audio id="sonido-click" src="{% static 'sonidos/Click.mp3' %}"></audio>
+<audio id="sonido-correcto" src="{% static 'sonidos/Correcto.mp3' %}"></audio>
+<audio id="sonido-error" src="{% static 'sonidos/Error.mp3' %}"></audio>
+<audio id="sonido-ganar" src="{% static 'sonidos/Ganaste.mp3' %}"></audio>
+<audio id="sonido-perder" src="{% static 'sonidos/Perdiste.mp3' %}"></audio>
+</body>
+</html>
